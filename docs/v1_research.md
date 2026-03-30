@@ -63,19 +63,18 @@ Verified on this machine on 2026-03-29:
 
 - `claude` installed at `/Users/seanflanagan/.local/bin/claude`, v2.1.81, subscription auth active
 - `codex` installed at `/opt/homebrew/bin/codex`, v0.117.0, ChatGPT login active
-- `gemini` not installed
+- `gemini` installed at `/opt/homebrew/bin/gemini`, v0.35.3, subscription with auth active
 
 Auth status checks:
 
 - Claude: `claude auth status` — exits 0 if logged in, 1 if not
 - Codex: `codex login status` — exits 0 if authenticated
-- Gemini: no official status command; check `~/.gemini/oauth_creds.json` existence (weak — token may be expired)
+- Gemini: `/auth` (inside interactive session) — switches auth method; no standalone `gemini auth status` CLI command exists
 
 Implications:
 
-1. MVP must not hard-require Gemini.
-2. Provider availability is a first-class runtime concept.
-3. Validation spike targets Claude and Codex immediately.
+1. Provider availability is a first-class runtime concept.
+2. Validation spike targets Claude and Codex immediately.
 
 ## Architecture
 
@@ -171,7 +170,7 @@ Constraints:
 - Trusted Folders are off by default, but if enabled can block headless execution.
 - Not installed on this machine.
 
-Design as a first-class adapter but not a hard MVP dependency. Plan context delivery via app-level context pack plus CWD, not `--include-directories`.
+Design as a first-class adapter. Plan context delivery via app-level context pack plus CWD, not `--include-directories`.
 
 ## Architectural Rules
 
@@ -397,13 +396,12 @@ Deliver: blocked-state diagnostics, retry for transient failures, Gemini hardeni
 
 Settled for planning purposes:
 
-1. **Gemini not required for MVP.** Ship with available providers only.
-2. **v1 forbids repo mutation by default.** Avoids approval/sandbox edge cases.
-3. **Synthesizer is selectable.** Default to Claude for narrative briefs. Consider Codex for schema-heavy extraction.
-4. **Context is explicit.** Never "entire repo by default." Selected paths plus file-tree summaries.
-5. **Sessions in app-data directory.** Platform-appropriate default with export/open support.
-6. **Deterministic normalization, optional prose pass.** Traceability without sacrificing readability.
-7. **Binary discovery at startup via `/bin/sh -lc "which ..."`**. Store absolute paths. Required — Tauri apps from Finder/Dock do not inherit shell PATH.
+1. **v1 forbids repo mutation by default.** Avoids approval/sandbox edge cases.
+2. **Synthesizer is selectable.** Default to Claude for narrative briefs. Consider Codex for schema-heavy extraction.
+3. **Context is explicit.** Never "entire repo by default." Selected paths plus file-tree summaries.
+4. **Sessions in app-data directory.** Platform-appropriate default with export/open support.
+5. **Deterministic normalization, optional prose pass.** Traceability without sacrificing readability.
+6. **Binary discovery at startup via `/bin/sh -lc "which ..."`**. Store absolute paths. Required — Tauri apps from Finder/Dock do not inherit shell PATH.
 
 ## References
 
