@@ -48,8 +48,14 @@ pub async fn probe() -> ProviderProbeResult {
             executable_path: Some(path),
             version,
             auth_ready: false,
-            blocked_reason: Some("Gemini auth not active (exit code 41)".to_string()),
-            remediation: Some("Run `gemini` interactively and complete the auth flow".to_string()),
+            blocked_reason: Some(
+                "Gemini is installed but not authenticated (exit code 41). Runs using Gemini will be skipped."
+                    .to_string(),
+            ),
+            remediation: Some(
+                "Open a terminal and run: gemini\nComplete the interactive auth flow, then return here."
+                    .to_string(),
+            ),
         },
         Ok((_, stderr, code)) => ProviderProbeResult {
             provider: ProviderName::Gemini,
@@ -57,8 +63,13 @@ pub async fn probe() -> ProviderProbeResult {
             executable_path: Some(path),
             version,
             auth_ready: false,
-            blocked_reason: Some(format!("auth probe failed (exit {code}): {stderr}")),
-            remediation: Some("Run `gemini` interactively to verify it works".to_string()),
+            blocked_reason: Some(format!(
+                "Gemini auth probe failed (exit {code}). This may be a transient issue or a configuration problem. stderr: {stderr}"
+            )),
+            remediation: Some(
+                "Try running `gemini` interactively to verify it works. If the issue persists, check your Google account auth."
+                    .to_string(),
+            ),
         },
         Err(e) => ProviderProbeResult {
             provider: ProviderName::Gemini,
@@ -66,8 +77,13 @@ pub async fn probe() -> ProviderProbeResult {
             executable_path: Some(path),
             version,
             auth_ready: false,
-            blocked_reason: Some(e),
-            remediation: Some("Gemini probe timed out — verify the CLI is responsive".to_string()),
+            blocked_reason: Some(format!(
+                "Gemini probe timed out or failed: {e}. The CLI may be unresponsive."
+            )),
+            remediation: Some(
+                "Verify the Gemini CLI is responsive by running `gemini -v` in a terminal. If it hangs, try reinstalling."
+                    .to_string(),
+            ),
         },
     }
 }

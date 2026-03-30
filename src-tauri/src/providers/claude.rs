@@ -61,8 +61,14 @@ pub async fn probe() -> ProviderProbeResult {
             executable_path: Some(path),
             version,
             auth_ready: false,
-            blocked_reason: Some("Claude auth not active".to_string()),
-            remediation: Some("Run `claude auth login` in your terminal".to_string()),
+            blocked_reason: Some(
+                "Claude is installed but not authenticated. Runs using Claude will be skipped."
+                    .to_string(),
+            ),
+            remediation: Some(
+                "Open a terminal and run: claude auth login\nThen return here and the status will update on next probe."
+                    .to_string(),
+            ),
         }
     }
 }
@@ -81,7 +87,8 @@ pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String
         .arg("--permission-mode")
         .arg("dontAsk")
         .arg("--max-turns")
-        .arg("1");
+        .arg("1")
+        .arg("--no-session-persistence");
 
     // Inject perspective via system prompt
     if !spec.perspective_instructions.is_empty() {

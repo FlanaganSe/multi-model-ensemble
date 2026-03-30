@@ -375,6 +375,7 @@ mod tests {
             stdout: stdout.to_string(),
             stderr: String::new(),
             blocked_reason: None,
+            blocked_remediation: None,
             error: None,
         }
     }

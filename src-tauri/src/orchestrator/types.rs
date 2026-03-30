@@ -99,6 +99,7 @@ pub struct JobResult {
     pub stdout: String,
     pub stderr: String,
     pub blocked_reason: Option<String>,
+    pub blocked_remediation: Option<String>,
     pub error: Option<String>,
 }
 
@@ -117,6 +118,7 @@ impl JobResult {
             stdout: String::new(),
             stderr: String::new(),
             blocked_reason: None,
+            blocked_remediation: None,
             error: None,
         }
     }
@@ -163,12 +165,18 @@ impl JobResult {
         self.compute_duration();
     }
 
-    /// Mark as blocked with a reason.
+    /// Mark as blocked with a reason and optional remediation.
     pub fn mark_blocked(&mut self, reason: String) {
         self.state = JobState::Blocked;
         self.ended_at = Some(Utc::now().to_rfc3339());
         self.blocked_reason = Some(reason);
         self.compute_duration();
+    }
+
+    /// Mark as blocked with reason and remediation text.
+    pub fn mark_blocked_with_remediation(&mut self, reason: String, remediation: String) {
+        self.mark_blocked(reason);
+        self.blocked_remediation = Some(remediation);
     }
 
     /// Mark as cancelled.

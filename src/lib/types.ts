@@ -1,5 +1,13 @@
 export type ProviderName = "claude" | "codex" | "gemini";
 
+export interface Perspective {
+	id: string;
+	label: string;
+	instructions: string;
+}
+
+export type SynthesisStrategy = "consensus" | "comprehensive" | "executive";
+
 export type ProviderStatus = "ready" | "not_installed" | "not_authenticated" | "error";
 
 export interface ProviderProbeResult {
@@ -48,6 +56,22 @@ export interface RunSummary {
 	timed_out: number;
 	blocked: number;
 	cancelled: number;
+}
+
+export interface JobResult {
+	job_id: string;
+	provider: ProviderName;
+	perspective_id: string;
+	state: "queued" | "running" | "completed" | "failed" | "timed_out" | "blocked" | "cancelled";
+	started_at: string | null;
+	ended_at: string | null;
+	duration_ms: number | null;
+	exit_code: number | null;
+	stdout: string;
+	stderr: string;
+	blocked_reason: string | null;
+	blocked_remediation: string | null;
+	error: string | null;
 }
 
 export interface SourceRef {

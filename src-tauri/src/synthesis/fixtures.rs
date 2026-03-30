@@ -67,6 +67,7 @@ pub fn make_job_result(
         stdout: stdout.to_string(),
         stderr: String::new(),
         blocked_reason: None,
+        blocked_remediation: None,
         error: None,
     }
 }

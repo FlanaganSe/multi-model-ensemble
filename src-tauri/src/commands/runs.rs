@@ -1,5 +1,5 @@
 use crate::orchestrator;
-use crate::orchestrator::types::{RunConfig, RunSummary};
+use crate::orchestrator::types::{JobResult, RunConfig, RunSummary};
 use crate::providers::{claude, codex, gemini};
 use crate::session_store;
 use crate::synthesis;
@@ -85,6 +85,25 @@ pub async fn run_session(
     }
 
     Ok(summary)
+}
+
+/// Get job-level results for a session (for retry UI and detailed status).
+#[tauri::command]
+pub async fn get_run_results(session_id: String) -> Result<Vec<JobResult>, String> {
+    let root =
+        crate::session_store::safe_paths::SessionRoot::resolve().map_err(|e| e.to_string())?;
+    let session_dir = root.session_path(&session_id);
+    root.assert_within_root(&session_dir)
+        .map_err(|e| e.to_string())?;
+
+    let summary_path = session_dir.join("run-summary.json");
+    if !summary_path.exists() {
+        return Ok(vec![]);
+    }
+
+    let content = std::fs::read_to_string(&summary_path).map_err(|e| e.to_string())?;
+    let results: Vec<JobResult> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(results)
 }
 
 /// Run the synthesis pipeline: normalize → evidence matrix → strategy → brief.md

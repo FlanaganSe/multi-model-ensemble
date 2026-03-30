@@ -193,7 +193,11 @@ async fn execute_single_job(
                 .blocked_reason
                 .clone()
                 .unwrap_or_else(|| "provider not ready".to_string());
-            result.mark_blocked(reason.clone());
+            if let Some(ref remediation) = p.remediation {
+                result.mark_blocked_with_remediation(reason.clone(), remediation.clone());
+            } else {
+                result.mark_blocked(reason.clone());
+            }
             logger.log_best_effort(&Event::JobBlocked {
                 job_id: spec.id.clone(),
                 provider: spec.provider.clone(),
@@ -225,12 +229,8 @@ async fn execute_single_job(
         provider: spec.provider.clone(),
     });
 
-    // Execute via provider adapter
-    let exec_result = tokio::time::timeout(
-        std::time::Duration::from_secs(spec.timeout_secs),
-        crate::providers::execute(&spec.provider, probe, spec),
-    )
-    .await;
+    // Execute via provider adapter with single automatic retry for transient spawn failures.
+    let exec_result = execute_with_spawn_retry(probe, spec).await;
 
     match exec_result {
         Ok(Ok((stdout, stderr, exit_code))) => {
@@ -323,6 +323,50 @@ async fn persist_job_artifacts(
     );
 }
 
+/// Execute a provider job with a single automatic retry for transient spawn failures.
+/// Only retries when the provider adapter itself fails to spawn the process (Err),
+/// not when the process runs and exits with a non-zero code (Ok with exit_code != 0).
+async fn execute_with_spawn_retry(
+    probe: &crate::providers::types::ProviderProbeResult,
+    spec: &JobSpec,
+) -> Result<Result<(String, String, i32), String>, tokio::time::error::Elapsed> {
+    let timeout = std::time::Duration::from_secs(spec.timeout_secs);
+
+    let first_attempt = tokio::time::timeout(
+        timeout,
+        crate::providers::execute(&spec.provider, probe, spec),
+    )
+    .await;
+
+    match &first_attempt {
+        Ok(Err(e)) if is_transient_spawn_error(e) => {
+            log::warn!(
+                "Transient spawn failure for {:?}/{}, retrying once: {e}",
+                spec.provider,
+                spec.perspective_id
+            );
+            // Brief pause before retry
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            tokio::time::timeout(
+                timeout,
+                crate::providers::execute(&spec.provider, probe, spec),
+            )
+            .await
+        }
+        _ => first_attempt,
+    }
+}
+
+/// Heuristic: a spawn error is transient if it mentions common OS-level transient failure
+/// patterns (resource temporarily unavailable, too many open files, etc.).
+fn is_transient_spawn_error(error: &str) -> bool {
+    let lower = error.to_lowercase();
+    lower.contains("resource temporarily unavailable")
+        || lower.contains("too many open files")
+        || lower.contains("cannot allocate memory")
+        || lower.contains("failed to spawn")
+}
+
 /// Build a job matrix without executing (for testing and inspection).
 pub fn expand_matrix(config: &RunConfig) -> Vec<(ProviderName, String)> {
     let mut matrix = Vec::new();
@@ -337,6 +381,21 @@ pub fn expand_matrix(config: &RunConfig) -> Vec<(ProviderName, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_transient_spawn_error_detection() {
+        assert!(is_transient_spawn_error(
+            "Failed to spawn claude: Resource temporarily unavailable"
+        ));
+        assert!(is_transient_spawn_error("Too many open files"));
+        assert!(is_transient_spawn_error("Cannot allocate memory"));
+        assert!(is_transient_spawn_error(
+            "failed to spawn codex: os error 35"
+        ));
+        assert!(!is_transient_spawn_error("process exited with code 1"));
+        assert!(!is_transient_spawn_error("auth not active"));
+        assert!(!is_transient_spawn_error(""));
+    }
 
     #[test]
     fn test_build_job_matrix() {

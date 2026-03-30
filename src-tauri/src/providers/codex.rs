@@ -61,8 +61,14 @@ pub async fn probe() -> ProviderProbeResult {
             executable_path: Some(path),
             version,
             auth_ready: false,
-            blocked_reason: Some("Codex auth not active".to_string()),
-            remediation: Some("Run `codex login` in your terminal".to_string()),
+            blocked_reason: Some(
+                "Codex is installed but not authenticated. Runs using Codex will be skipped."
+                    .to_string(),
+            ),
+            remediation: Some(
+                "Open a terminal and run: codex login\nThen return here and the status will update on next probe."
+                    .to_string(),
+            ),
         }
     }
 }
@@ -77,7 +83,8 @@ pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String
         .arg("-a")
         .arg("never")
         .arg("-s")
-        .arg("read-only");
+        .arg("read-only")
+        .arg("--ephemeral");
 
     // Inject perspective via developer_instructions config override
     if !spec.perspective_instructions.is_empty() {

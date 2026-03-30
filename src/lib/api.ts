@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
 	EvidenceMatrix,
+	JobResult,
+	Perspective,
 	ProviderProbeResult,
 	RunSummary,
 	SessionArtifact,
@@ -67,4 +69,12 @@ export async function getSessionArtifacts(sessionId: string): Promise<SessionArt
 
 export async function readArtifact(sessionId: string, relativePath: string): Promise<string> {
 	return invoke<string>("read_artifact", { sessionId, relativePath });
+}
+
+export async function listPerspectives(): Promise<Perspective[]> {
+	return invoke<Perspective[]>("list_perspectives");
+}
+
+export async function getRunResults(sessionId: string): Promise<JobResult[]> {
+	return invoke<JobResult[]>("get_run_results", { sessionId });
 }

@@ -242,6 +242,13 @@ Exit criteria:
 
 #### Milestone 4: Desktop workflow and hardening
 
+- [x] Step 1 — Build RunComposer component: prompt textarea, provider toggles (status-aware), perspective checkboxes, strategy dropdown, working directory input, run button with loading state. Wire to `run_session` API. Add archive button + run metadata to session browser. → verify: `pnpm build && pnpm vitest run`
+- [x] Step 2 — Add provider side-effect reduction flags (`--no-session-persistence` for Claude, `--ephemeral` for Codex) and strengthen blocked-state remediation text with per-job failure detail in run results UI → verify: `cargo test && cargo clippy --all-targets --all-features -- -D warnings`
+- [x] Step 3 — Add retry behavior: manual retry button for failed/timed-out jobs in run results, single automatic retry for transient spawn failures in orchestrator, preserve original artifacts → verify: `cargo test && pnpm vitest run`
+- [x] Step 4 — Add frontend tests for RunComposer and session browser, smoke e2e coverage for main workflow → verify: `pnpm vitest run && pnpm biome check .`
+- [x] Step 5 — Write BUILD.md (prerequisites, build/run/test, provider auth), write PROVIDER_PERSISTENCE.md, run full quality gate → verify: `pnpm biome check . && pnpm vitest run && pnpm build && cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test`
+Commit: "feat: milestone 4 — desktop workflow and hardening"
+
 Goal:
 
 - Make the product usable as a polished local tool rather than a backend prototype.

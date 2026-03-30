@@ -13,11 +13,13 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::providers::probe_providers,
+            commands::providers::list_perspectives,
             commands::sessions::create_session,
             commands::sessions::list_sessions,
             commands::sessions::archive_session,
             commands::sessions::delete_session,
             commands::runs::run_session,
+            commands::runs::get_run_results,
             commands::synthesis::get_brief,
             commands::synthesis::get_evidence_matrix,
             commands::synthesis::get_normalized_runs,
