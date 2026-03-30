@@ -150,35 +150,18 @@ Recommended initial project shape:
 
 #### Milestone 1: Foundation and safe boundaries
 
-Goal:
+- [x] Step 1 — Scaffold Tauri v2 + React + TS + Vite project with Biome, Vitest, cargo fmt/clippy/test → verify: `pnpm build`, `cargo check`
+- [x] Step 2 — Implement session store: safe paths (canonicalize, reject outside root, symlink defense), layout, metadata schema v1 → verify: `cargo test`
+- [x] Step 3 — Implement provider probing: binary discovery via `/bin/sh -lc "which ..."`, version check, auth check (Claude: `auth status`, Codex: `login status`, Gemini: `-p "ok"` exit code 41) → verify: `cargo test`
+- [x] Step 4 — Wire Tauri commands and minimal UI: provider health cards, session list with create/delete → verify: `pnpm build`, `pnpm test`
+- [x] Step 5 — Run full quality gate: biome check, vitest, tsc, cargo fmt/clippy/test → verify: all pass
+Commit: "feat: milestone 1 — foundation and safe boundaries"
 
-- Stand up the app skeleton and make safety/inspectability first-class before model fan-out.
-
-Scope:
-
-- Scaffold Tauri v2 app with React + TypeScript + Vite.
-- Establish Rust backend modules and provider adapter trait.
-- Implement provider probe commands:
-  - installed path (use `/bin/sh -lc "which ..."` — Tauri apps launched from Finder/Dock do not inherit shell PATH)
-  - version
-  - auth-ready or blocked (Claude: `claude auth status` exit code; Codex: `codex login status` exit code; Gemini: run `gemini -p "ok" --output-format json` and check exit code — 41 means auth failure, no standalone auth command exists)
-  - notes/remediation
-- Establish app-owned session root in platform app-data.
-- Implement path-canonicalized session create/archive/delete primitives.
-- Define canonical session layout and metadata schema version.
-- Add minimal UI shell for provider health and run composition.
-- Add frontend and backend lint/test/build plumbing.
-
-Why first:
-
-- Without provider health and safe storage boundaries, later work becomes hard to reason about.
-
-Exit criteria:
-
-- App launches.
-- Provider probe results render in the UI.
-- Session create/archive/delete works only within the app-owned root.
-- `pnpm lint`, `pnpm test`, `cargo fmt --check`, `cargo clippy`, `cargo test` are wired and passing.
+Drift notes:
+- `gemini --version` and `gemini -v` both hang on this machine; probe must use tight timeout
+- Tauri v2 requires `[lib]` section in Cargo.toml with `crate-type = ["staticlib", "cdylib", "rlib"]`
+- Tauri v2 icons must be RGBA PNGs
+- Biome must ignore `.pnpm-store` directory
 
 #### Milestone 2: Provider fan-out and artifact capture
 
