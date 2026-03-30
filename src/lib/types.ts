@@ -27,3 +27,70 @@ export interface SessionListEntry {
 	label: string | null;
 	path: string;
 }
+
+// Synthesis types
+
+export interface SessionArtifact {
+	relative_path: string;
+	artifact_type: string;
+	size_bytes: number;
+}
+
+export interface JobState {
+	state: "queued" | "running" | "completed" | "failed" | "timed_out" | "blocked" | "cancelled";
+}
+
+export interface RunSummary {
+	session_id: string;
+	total_jobs: number;
+	completed: number;
+	failed: number;
+	timed_out: number;
+	blocked: number;
+	cancelled: number;
+}
+
+export interface SourceRef {
+	job_id: string;
+	provider: ProviderName;
+	perspective_id: string;
+}
+
+export interface EvidenceMatrix {
+	schema_version: number;
+	session_id: string;
+	sources: Array<{
+		job_id: string;
+		provider: ProviderName;
+		perspective_id: string;
+		status: string;
+	}>;
+	themes: Array<{
+		id: string;
+		label: string;
+		claims: Array<{
+			id: string;
+			text: string;
+			section_type: string;
+			source: SourceRef;
+		}>;
+		agreement_level: string;
+		disagreements: Array<{
+			description: string;
+			positions: Array<{
+				stance: string;
+				sources: SourceRef[];
+			}>;
+		}>;
+	}>;
+	coverage: {
+		providers: ProviderName[];
+		perspectives: string[];
+		cells: Array<{
+			provider: ProviderName;
+			perspective: string;
+			status: string;
+			job_id: string;
+		}>;
+	};
+}

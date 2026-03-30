@@ -4,6 +4,7 @@ pub mod orchestrator;
 pub mod perspectives;
 pub mod providers;
 pub mod session_store;
+pub mod synthesis;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +18,11 @@ pub fn run() {
             commands::sessions::archive_session,
             commands::sessions::delete_session,
             commands::runs::run_session,
+            commands::synthesis::get_brief,
+            commands::synthesis::get_evidence_matrix,
+            commands::synthesis::get_normalized_runs,
+            commands::synthesis::get_session_artifacts,
+            commands::synthesis::read_artifact,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

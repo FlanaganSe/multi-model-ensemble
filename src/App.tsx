@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ArtifactViewer } from "./features/artifact-viewer/ArtifactViewer";
 import { createSession, deleteSession, listSessions, probeProviders } from "./lib/api";
 import type { ProviderProbeResult, SessionListEntry } from "./lib/types";
 
@@ -71,6 +72,7 @@ export function App() {
 	const [sessions, setSessions] = useState<SessionListEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [viewingSession, setViewingSession] = useState<string | null>(null);
 
 	const refresh = useCallback(async () => {
 		try {
@@ -109,6 +111,10 @@ export function App() {
 			setError(String(e));
 		}
 	};
+
+	if (viewingSession) {
+		return <ArtifactViewer sessionId={viewingSession} onClose={() => setViewingSession(null)} />;
+	}
 
 	return (
 		<div style={{ padding: 24, fontFamily: "system-ui, sans-serif", color: "#e0e0e0" }}>
@@ -180,12 +186,23 @@ export function App() {
 								alignItems: "center",
 							}}
 						>
-							<div>
+							<button
+								type="button"
+								onClick={() => setViewingSession(s.id)}
+								style={{
+									background: "none",
+									border: "none",
+									color: "#e0e0e0",
+									cursor: "pointer",
+									textAlign: "left",
+									padding: 0,
+								}}
+							>
 								<div style={{ fontWeight: 600 }}>{s.label ?? s.id}</div>
 								<div style={{ fontSize: 13, color: "#888" }}>
 									{s.created_at} &middot; {s.status}
 								</div>
-							</div>
+							</button>
 							{s.status === "active" && (
 								<button
 									type="button"

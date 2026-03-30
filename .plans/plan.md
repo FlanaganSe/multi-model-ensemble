@@ -201,6 +201,13 @@ Exit criteria:
 
 #### Milestone 3: Normalization and synthesis
 
+- [x] Step 1 — Define synthesis types and implement per-provider normalization: create `synthesis/` module with types, parse Claude JSON (`{type,result,...}`), Codex text, Gemini JSON (`{response,stats,error?}`) into `NormalizedRun`. Add fixture-based tests. → verify: `cargo test`
+- [x] Step 2 — Build evidence matrix, synthesis strategies, and brief rendering: construct evidence matrix from normalized runs with disagreement tracking, implement 3 strategies (consensus, comprehensive, executive), render `brief.md` deterministically from structured data. Add adversarial test fixtures. → verify: `cargo test`
+- [x] Step 3 — Wire synthesis into orchestrator and add Tauri commands: integrate synthesis as post-processing in `run_session`, add commands for artifact reading (`get_session_artifacts`, `read_artifact`, `get_brief`), persist all synthesis artifacts to `synthesis/` dir, handle failures gracefully → verify: `cargo test && cargo clippy --all-targets --all-features -- -D warnings`
+- [x] Step 4 — Add frontend types, API, and minimal artifact viewer: add TS types for normalized/synthesis data, add API calls for new commands, add ArtifactViewer component to inspect normalized runs, evidence matrix, and brief with drill-into-raw-runs support → verify: `pnpm build && pnpm vitest run`
+- [x] Step 5 — Full quality gate → verify: `pnpm biome check . && pnpm vitest run && pnpm build && cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test`
+Commit: "feat: milestone 3 — normalization and synthesis"
+
 Goal:
 
 - Convert raw multi-provider outputs into one trustworthy standardized brief.
