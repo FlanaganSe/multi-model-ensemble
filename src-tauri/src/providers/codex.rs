@@ -1,5 +1,7 @@
-use super::{discover_binary, run_probe_command};
+use super::{discover_binary, run_probe_command, sanitized_env, strip_ansi};
+use crate::orchestrator::types::JobSpec;
 use crate::providers::types::{ProviderName, ProviderProbeResult, ProviderStatus};
+use tokio::process::Command;
 
 const BINARY_NAME: &str = "codex";
 
@@ -63,4 +65,53 @@ pub async fn probe() -> ProviderProbeResult {
             remediation: Some("Run `codex login` in your terminal".to_string()),
         }
     }
+}
+
+/// Execute Codex in non-interactive mode.
+///
+/// Command: codex exec -a never -s read-only -c developer_instructions="<perspective>" "<prompt>"
+pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String, i32), String> {
+    let mut cmd = Command::new(executable);
+
+    cmd.arg("exec")
+        .arg("-a")
+        .arg("never")
+        .arg("-s")
+        .arg("read-only");
+
+    // Inject perspective via developer_instructions config override
+    if !spec.perspective_instructions.is_empty() {
+        cmd.arg("-c").arg(format!(
+            "developer_instructions={}",
+            spec.perspective_instructions
+        ));
+    }
+
+    // The prompt is the last positional argument
+    cmd.arg(&spec.prompt);
+
+    // Set working directory if provided
+    if let Some(ref cwd) = spec.working_directory {
+        cmd.current_dir(cwd);
+    }
+
+    // Sanitize environment: strip API keys
+    cmd.env_clear();
+    for (key, value) in sanitized_env() {
+        cmd.env(&key, &value);
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to spawn codex: {e}"))?;
+
+    let stdout = strip_ansi(&String::from_utf8_lossy(&output.stdout));
+    let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
+    let exit_code = output.status.code().unwrap_or(-1);
+
+    Ok((stdout, stderr, exit_code))
 }

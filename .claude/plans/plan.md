@@ -134,32 +134,12 @@ gemini -p "<prompt>" \
 
 **Goal:** Run prompt × models × perspectives, persist everything to a session directory.
 
-This milestone builds the orchestration layer. It takes user inputs (prompt, selected models, selected perspectives, optional context) and executes the full fan-out, saving all raw outputs in a structured session directory.
-
-**What gets built:**
-- Session manager: create session directory, write metadata, manage lifecycle
-- Session directory layout per the spec (see research doc section "Session Layout")
-- Perspective system: YAML template loading, built-in perspectives (`default`, `creative`, `adversarial`, `performance`, `devils-advocate`)
-- Prompt assembly: base prompt + perspective instructions + context
-- Context pack builder: selected files/directories → packaged context string with manifest
-- Job supervisor: build job matrix, run with `tokio::JoinSet`, enforce concurrency limit (4), handle timeout/cancel
-- Raw artifact persistence: stdout, stderr, invocation metadata per job
-- Event logging: JSONL event stream to `logs/events.jsonl`
-- Tauri commands (IPC): `run_session`, `get_providers` (exposed but UI not built yet)
-- Tests: session creation, perspective loading, prompt assembly, job matrix construction, concurrent execution
-
-**Exit criterion:** From a Rust test or Tauri command, submit a prompt with 2 models × 2 perspectives → 4 jobs run in parallel → session directory created with all raw outputs, invocation metadata, and event log.
-
-**Key decisions for the implementing agent:**
-- Session directory: `~/Library/Application Support/com.multimodel.synthesizer/sessions/<timestamp>_<slug>/`
-- Use `dirs::data_dir()` crate for platform-appropriate app-data path
-- Perspectives are `.yaml` files in `src-tauri/perspectives/` (built-in) and `~/.config/multimodel/perspectives/` (user custom)
-- Context pack: concatenate selected file contents with path headers, produce a manifest listing included/excluded files with byte counts
-- Concurrency: `tokio::sync::Semaphore` with 4 permits
-- Job timeout: `tokio::time::timeout` wrapping each adapter execute call
-- JSONL events: append-only, one JSON object per line, timestamp + event type + payload
-- Session metadata (`session.json`): app version, session id, created timestamp, providers, perspectives, strategy, working directory, git info if available
-- All paths in session metadata should be relative to the session directory (for portability)
+- [x] Step 1 — Core types, perspectives, and context pack → verify: `cargo check`
+- [x] Step 2 — Provider execution adapters with env sanitization → verify: `cargo check`
+- [x] Step 3 — Job supervisor, events, and artifact persistence → verify: `cargo check`
+- [x] Step 4 — Tauri commands and session metadata update → verify: `cargo build`
+- [x] Step 5 — Tests and quality gates → verify: `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test && cd .. && pnpm biome check . && pnpm vitest run && pnpm build`
+Commit: "feat: milestone 2 — provider fan-out and artifact capture"
 
 #### M3: Normalization + Synthesis
 
@@ -322,7 +302,7 @@ codex exec \
 ```bash
 # Probe
 which gemini               # binary path
-gemini --version           # version string
+gemini --v           # version string
 # Auth: no standalone command — probe via lightweight test call
 
 # Execute

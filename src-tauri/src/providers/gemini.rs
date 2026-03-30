@@ -1,5 +1,7 @@
-use super::{discover_binary, run_probe_command};
+use super::{discover_binary, run_probe_command, sanitized_env, strip_ansi};
+use crate::orchestrator::types::JobSpec;
 use crate::providers::types::{ProviderName, ProviderProbeResult, ProviderStatus};
+use tokio::process::Command;
 
 const BINARY_NAME: &str = "gemini";
 
@@ -68,4 +70,51 @@ pub async fn probe() -> ProviderProbeResult {
             remediation: Some("Gemini probe timed out — verify the CLI is responsive".to_string()),
         },
     }
+}
+
+/// Execute Gemini in non-interactive mode.
+///
+/// Perspective injection: uses GEMINI_SYSTEM_MD pointing to the perspective file
+/// already persisted by the orchestrator in the session's prompts/ directory.
+/// No temp files are created — cleanup is handled by session lifecycle.
+///
+/// Command: GEMINI_SYSTEM_MD=/path/to/perspective.md gemini -p "<prompt>" --output-format json
+pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String, i32), String> {
+    let mut cmd = Command::new(executable);
+
+    cmd.arg("-p").arg(&spec.prompt);
+    cmd.arg("--output-format").arg("json");
+
+    // Set working directory if provided
+    if let Some(ref cwd) = spec.working_directory {
+        cmd.current_dir(cwd);
+    }
+
+    // Sanitize environment: strip API keys
+    cmd.env_clear();
+    for (key, value) in sanitized_env() {
+        cmd.env(&key, &value);
+    }
+
+    // Set GEMINI_SYSTEM_MD to the perspective file persisted by the orchestrator.
+    // This avoids creating temp files that could leak on timeout.
+    if let Some(ref persp_file) = spec.perspective_file {
+        if !spec.perspective_instructions.is_empty() {
+            cmd.env("GEMINI_SYSTEM_MD", persp_file);
+        }
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to spawn gemini: {e}"))?;
+
+    let stdout = strip_ansi(&String::from_utf8_lossy(&output.stdout));
+    let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
+    let exit_code = output.status.code().unwrap_or(-1);
+
+    Ok((stdout, stderr, exit_code))
 }

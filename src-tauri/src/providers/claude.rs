@@ -1,5 +1,7 @@
-use super::{discover_binary, run_probe_command};
+use super::{discover_binary, run_probe_command, sanitized_env, strip_ansi};
+use crate::orchestrator::types::JobSpec;
 use crate::providers::types::{ProviderName, ProviderProbeResult, ProviderStatus};
+use tokio::process::Command;
 
 const BINARY_NAME: &str = "claude";
 
@@ -63,4 +65,58 @@ pub async fn probe() -> ProviderProbeResult {
             remediation: Some("Run `claude auth login` in your terminal".to_string()),
         }
     }
+}
+
+/// Execute Claude in non-interactive mode.
+///
+/// Command: claude -p "<prompt>" --output-format json --permission-mode dontAsk
+///          --max-turns 1 --system-prompt "<perspective>" --allowedTools Read Grep Glob
+pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String, i32), String> {
+    let mut cmd = Command::new(executable);
+
+    cmd.arg("-p")
+        .arg(&spec.prompt)
+        .arg("--output-format")
+        .arg("json")
+        .arg("--permission-mode")
+        .arg("dontAsk")
+        .arg("--max-turns")
+        .arg("1");
+
+    // Inject perspective via system prompt
+    if !spec.perspective_instructions.is_empty() {
+        cmd.arg("--system-prompt")
+            .arg(&spec.perspective_instructions);
+    }
+
+    // Narrow tool scope to read-only
+    cmd.arg("--allowedTools")
+        .arg("Read")
+        .arg("Grep")
+        .arg("Glob");
+
+    // Set working directory if provided
+    if let Some(ref cwd) = spec.working_directory {
+        cmd.current_dir(cwd);
+    }
+
+    // Sanitize environment: strip API keys
+    cmd.env_clear();
+    for (key, value) in sanitized_env() {
+        cmd.env(&key, &value);
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to spawn claude: {e}"))?;
+
+    let stdout = strip_ansi(&String::from_utf8_lossy(&output.stdout));
+    let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
+    let exit_code = output.status.code().unwrap_or(-1);
+
+    Ok((stdout, stderr, exit_code))
 }

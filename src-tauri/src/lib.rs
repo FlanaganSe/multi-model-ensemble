@@ -1,4 +1,7 @@
 pub mod commands;
+pub mod context;
+pub mod orchestrator;
+pub mod perspectives;
 pub mod providers;
 pub mod session_store;
 
@@ -13,6 +16,7 @@ pub fn run() {
             commands::sessions::list_sessions,
             commands::sessions::archive_session,
             commands::sessions::delete_session,
+            commands::runs::run_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
