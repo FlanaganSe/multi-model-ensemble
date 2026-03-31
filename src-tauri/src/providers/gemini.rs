@@ -5,9 +5,6 @@ use tokio::process::Command;
 
 const BINARY_NAME: &str = "gemini";
 
-/// Gemini exit code 41 = FatalAuthenticationError.
-const AUTH_FAILURE_EXIT_CODE: i32 = 41;
-
 pub async fn probe() -> ProviderProbeResult {
     let path = match discover_binary(BINARY_NAME).await {
         Some(p) => p,
@@ -28,12 +25,15 @@ pub async fn probe() -> ProviderProbeResult {
         _ => None,
     };
 
-    // No `gemini auth status` command exists. Probe auth by running a minimal
-    // headless call and checking exit code. Exit 0 = auth OK, exit 41 = auth failure.
-    let auth_result = run_probe_command(&path, &["-p", "ok", "--output-format", "json"]).await;
-
-    match auth_result {
-        Ok((_, _, 0)) => ProviderProbeResult {
+    // Gemini has no `auth status` command. A live `gemini -p "ok"` probe is
+    // unsuitable because it loads MCP servers, makes a real API call, can hit
+    // rate limits, and routinely exceeds any reasonable probe timeout.
+    //
+    // Instead: if `-v` succeeded we mark the provider as Ready and defer auth
+    // checking to runtime. If a run fails with exit code 41 the orchestrator
+    // will record a blocked state with remediation text at that point.
+    if version.is_some() {
+        ProviderProbeResult {
             provider: ProviderName::Gemini,
             status: ProviderStatus::Ready,
             executable_path: Some(path),
@@ -41,50 +41,23 @@ pub async fn probe() -> ProviderProbeResult {
             auth_ready: true,
             blocked_reason: None,
             remediation: None,
-        },
-        Ok((_, _, code)) if code == AUTH_FAILURE_EXIT_CODE => ProviderProbeResult {
+        }
+    } else {
+        ProviderProbeResult {
             provider: ProviderName::Gemini,
-            status: ProviderStatus::NotAuthenticated,
+            status: ProviderStatus::Error,
             executable_path: Some(path),
-            version,
+            version: None,
             auth_ready: false,
             blocked_reason: Some(
-                "Gemini is installed but not authenticated (exit code 41). Runs using Gemini will be skipped."
+                "Gemini is installed but did not respond to version check. The CLI may be misconfigured."
                     .to_string(),
             ),
             remediation: Some(
-                "Open a terminal and run: gemini\nComplete the interactive auth flow, then return here."
+                "Try running `gemini -v` in a terminal. If it hangs, check your Gemini CLI installation."
                     .to_string(),
             ),
-        },
-        Ok((_, stderr, code)) => ProviderProbeResult {
-            provider: ProviderName::Gemini,
-            status: ProviderStatus::Error,
-            executable_path: Some(path),
-            version,
-            auth_ready: false,
-            blocked_reason: Some(format!(
-                "Gemini auth probe failed (exit {code}). This may be a transient issue or a configuration problem. stderr: {stderr}"
-            )),
-            remediation: Some(
-                "Try running `gemini` interactively to verify it works. If the issue persists, check your Google account auth."
-                    .to_string(),
-            ),
-        },
-        Err(e) => ProviderProbeResult {
-            provider: ProviderName::Gemini,
-            status: ProviderStatus::Error,
-            executable_path: Some(path),
-            version,
-            auth_ready: false,
-            blocked_reason: Some(format!(
-                "Gemini probe timed out or failed: {e}. The CLI may be unresponsive."
-            )),
-            remediation: Some(
-                "Verify the Gemini CLI is responsive by running `gemini -v` in a terminal. If it hangs, try reinstalling."
-                    .to_string(),
-            ),
-        },
+        }
     }
 }
 
@@ -100,6 +73,7 @@ pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String
 
     cmd.arg("-p").arg(&spec.prompt);
     cmd.arg("--output-format").arg("json");
+    cmd.arg("--approval-mode").arg("plan");
 
     // Set working directory if provided
     if let Some(ref cwd) = spec.working_directory {

@@ -414,6 +414,24 @@ function JobIssueCard({ job }: { job: JobResult }) {
 				</div>
 			)}
 			{job.error && <div style={{ color: "#fca5a5" }}>{job.error}</div>}
+			{job.stderr && (
+				<pre
+					style={{
+						color: "#aaa",
+						marginTop: 4,
+						fontSize: 12,
+						whiteSpace: "pre-wrap",
+						wordBreak: "break-word",
+						maxHeight: 120,
+						overflow: "auto",
+						background: "#0a0a0a",
+						padding: 6,
+						borderRadius: 4,
+					}}
+				>
+					{job.stderr}
+				</pre>
+			)}
 			{job.state === "timed_out" && (
 				<div style={{ color: "#fbbf24" }}>
 					The provider did not respond within the timeout window. Try increasing the timeout or

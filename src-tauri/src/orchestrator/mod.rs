@@ -236,6 +236,20 @@ async fn execute_single_job(
         Ok(Ok((stdout, stderr, exit_code))) => {
             if exit_code == 0 {
                 result.mark_completed(exit_code, stdout, stderr);
+            } else if exit_code == 41
+                && spec.provider == crate::providers::types::ProviderName::Gemini
+            {
+                // Gemini exit code 41 = FatalAuthenticationError.
+                // Auth is deferred from probe time to runtime for Gemini because
+                // the CLI has no lightweight auth check.
+                result.mark_blocked_with_remediation(
+                    "Gemini authentication failed (exit code 41).".to_string(),
+                    "Open a terminal and run: gemini\nThis will open a Google OAuth flow in your browser. Sign in and grant access, then re-run."
+                        .to_string(),
+                );
+                result.stdout = stdout;
+                result.stderr = stderr;
+                result.exit_code = Some(exit_code);
             } else {
                 result.mark_failed(
                     format!("process exited with code {exit_code}"),

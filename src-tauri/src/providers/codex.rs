@@ -75,13 +75,14 @@ pub async fn probe() -> ProviderProbeResult {
 
 /// Execute Codex in non-interactive mode.
 ///
-/// Command: codex exec -a never -s read-only -c developer_instructions="<perspective>" "<prompt>"
+/// `codex exec` is inherently non-interactive — no approval flag exists or is needed.
+/// Sandbox mode controls what the model can do; read-only prevents all writes.
+///
+/// Command: codex exec -s read-only --ephemeral -c developer_instructions="<perspective>" "<prompt>"
 pub async fn execute(executable: &str, spec: &JobSpec) -> Result<(String, String, i32), String> {
     let mut cmd = Command::new(executable);
 
     cmd.arg("exec")
-        .arg("-a")
-        .arg("never")
         .arg("-s")
         .arg("read-only")
         .arg("--ephemeral");

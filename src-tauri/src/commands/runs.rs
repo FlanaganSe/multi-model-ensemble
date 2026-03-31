@@ -58,7 +58,7 @@ pub async fn run_session(
         perspectives,
         working_directory,
         context_paths: context_paths.unwrap_or_default(),
-        timeout_secs: timeout_secs.unwrap_or(120),
+        timeout_secs: timeout_secs.unwrap_or(5400),
         max_concurrent: 4,
     };
 
