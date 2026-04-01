@@ -10,7 +10,7 @@
 - At least one provider CLI installed and authenticated:
   - `claude` — [Install](https://code.claude.com/docs/en/getting-started), then `claude auth login`
   - `codex` — `npm install -g @openai/codex`, then `codex login`
-  - `gemini` — `see https://google-gemini.github.io/gemini-cli/`, then run `gemini` interactively to auth
+  - `gemini` — [Install](https://google-gemini.github.io/gemini-cli/), then run `gemini` interactively to complete Google OAuth
 
 ## Install
 
@@ -69,7 +69,9 @@ The app probes each provider CLI at startup. Providers that are not installed or
 | Codex | `codex login` | ChatGPT subscription |
 | Gemini | Run `gemini` interactively | Google account |
 
-**Important:** The app strips `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CODEX_API_KEY`, and `GEMINI_API_KEY` from spawned process environments to prevent accidental API billing. Only subscription-backed auth is supported.
+**Note on Gemini:** There is no `gemini auth status` command. The app marks Gemini as ready if `gemini -v` succeeds. If auth is actually missing, the run will fail with exit code 41 and show remediation instructions.
+
+**API key stripping:** The app strips `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CODEX_API_KEY`, and `GEMINI_API_KEY` from spawned process environments to prevent accidental API billing. Only subscription-backed auth is supported.
 
 ## Session Storage
 
@@ -78,9 +80,26 @@ Sessions are stored in the platform app-data directory:
 
 Each session is a self-contained directory with raw artifacts, normalized data, and the synthesized brief.
 
+## Provider Invocations
+
+The exact CLI commands used per provider:
+
+| Provider | Command |
+|----------|---------|
+| Claude | `claude -p "<prompt>" --output-format json --permission-mode dontAsk --max-turns 1 --no-session-persistence --system-prompt "<perspective>" --allowedTools Read Grep Glob` |
+| Codex | `codex exec -s read-only --ephemeral -c developer_instructions="<perspective>" "<prompt>"` |
+| Gemini | `GEMINI_SYSTEM_MD=<perspective-file> gemini -p "<prompt>" --output-format json --approval-mode plan` |
+
+## Run Defaults
+
+- **Timeout:** 90 minutes per job (configurable via API)
+- **Concurrency:** 4 concurrent jobs
+- **Synthesis strategy:** Consensus (also: comprehensive, executive)
+
 ## Known Caveats
 
 - **Gemini `--version` / `-v`** can hang on some machines. The probe uses a 10-second timeout.
 - **Gemini `--include-directories`** is broken (issue #13669). Context is delivered via CWD and app-level context packs instead.
+- **Gemini MCP servers** load during execution and add startup time. Rate limits may cause retries within the CLI itself.
 - **PATH discovery**: When launched from Finder/Dock, the app uses `/bin/sh -lc "which ..."` to find provider binaries, since Tauri apps do not inherit shell PATH.
 - **Gemini session persistence**: Gemini always writes session history to `~/.gemini/tmp/`. See `PROVIDER_PERSISTENCE.md` for details.
