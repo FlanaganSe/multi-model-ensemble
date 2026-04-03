@@ -2,7 +2,11 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { BriefView } from "../features/artifact-viewer/ArtifactViewer";
-import { extractHeadings, slugify } from "../features/artifact-viewer/components/BriefToC";
+import {
+	extractHeadings,
+	slugify,
+	splitSections,
+} from "../features/artifact-viewer/components/BriefToC";
 
 // Sample markdown that mirrors render_brief() output structure
 const sampleBrief = `# Research Brief
@@ -290,5 +294,142 @@ describe("BriefView table of contents", () => {
 		const simpleMarkdown = "# Title\n\nJust a paragraph.\n";
 		render(<BriefView brief={simpleMarkdown} />);
 		expect(screen.queryByText("Contents")).toBeNull();
+	});
+});
+
+describe("splitSections", () => {
+	it("splits markdown at h2 boundaries", () => {
+		const { sections } = splitSections(sampleBrief);
+		expect(sections.map((s) => s.heading)).toEqual([
+			"Key Themes",
+			"Recommendations",
+			"Uncertainties",
+			"Source Coverage",
+		]);
+	});
+
+	it("extracts preamble content before first h2", () => {
+		const { preamble } = splitSections(sampleBrief);
+		expect(preamble).toContain("# Research Brief");
+		expect(preamble).toContain("**Strategy:**");
+	});
+
+	it("assigns correct slugified IDs to sections", () => {
+		const { sections } = splitSections(sampleBrief);
+		expect(sections.map((s) => s.id)).toEqual([
+			"key-themes",
+			"recommendations",
+			"uncertainties",
+			"source-coverage",
+		]);
+	});
+
+	it("includes body content for each section", () => {
+		const { sections } = splitSections(sampleBrief);
+		const keyThemes = sections.find((s) => s.heading === "Key Themes");
+		expect(keyThemes?.body).toContain("### Performance Optimization");
+		const coverage = sections.find((s) => s.heading === "Source Coverage");
+		expect(coverage?.body).toContain("| Provider");
+	});
+
+	it("ignores h2 headings inside backtick code blocks", () => {
+		const md =
+			"# Title\n\n## Real\n\nContent\n\n```\n## Not a heading\n```\n\n## Also Real\n\nMore\n";
+		const { sections } = splitSections(md);
+		expect(sections.map((s) => s.heading)).toEqual(["Real", "Also Real"]);
+	});
+
+	it("ignores h2 headings inside tilde code blocks", () => {
+		const md = "## Real\n\nContent\n\n~~~\n## Not a heading\n~~~\n\n## Also Real\n\nMore\n";
+		const { sections } = splitSections(md);
+		expect(sections.map((s) => s.heading)).toEqual(["Real", "Also Real"]);
+	});
+
+	it("handles brief with no h2 headings (preamble only)", () => {
+		const md = "# Title\n\nJust text.\n";
+		const { preamble, sections } = splitSections(md);
+		expect(preamble).toContain("# Title");
+		expect(sections).toHaveLength(0);
+	});
+
+	it("deduplicates IDs for repeated heading text", () => {
+		const md = "## Summary\n\nA\n\n## Details\n\nB\n\n## Summary\n\nC\n";
+		const { sections } = splitSections(md);
+		expect(sections.map((s) => s.id)).toEqual(["summary", "details", "summary-2"]);
+	});
+
+	it("returns h2IdCounts for pre-seeding heading components", () => {
+		const { h2IdCounts } = splitSections(sampleBrief);
+		expect(h2IdCounts.get("key-themes")).toBe(1);
+		expect(h2IdCounts.get("recommendations")).toBe(1);
+	});
+});
+
+describe("BriefView collapsible sections", () => {
+	it("renders details elements for each h2 section", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const details = container.querySelectorAll("details.collapsible-section");
+		expect(details).toHaveLength(4);
+	});
+
+	it("first 3 sections are open by default", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const details = container.querySelectorAll("details.collapsible-section");
+		expect((details[0] as HTMLDetailsElement).open).toBe(true);
+		expect((details[1] as HTMLDetailsElement).open).toBe(true);
+		expect((details[2] as HTMLDetailsElement).open).toBe(true);
+		expect((details[3] as HTMLDetailsElement).open).toBe(false);
+	});
+
+	it("h2 headings are inside summary elements", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const summaries = container.querySelectorAll("summary.collapsible-summary");
+		expect(summaries).toHaveLength(4);
+		const headingTexts = Array.from(summaries).map((s) => s.querySelector("h2")?.textContent);
+		expect(headingTexts).toContain("Key Themes");
+		expect(headingTexts).toContain("Recommendations");
+	});
+
+	it("expand all opens all sections", async () => {
+		const user = userEvent.setup();
+		const { container } = render(<BriefView brief={sampleBrief} />);
+
+		await user.click(screen.getByText("Expand all"));
+
+		const details = container.querySelectorAll("details.collapsible-section");
+		for (const d of details) {
+			expect((d as HTMLDetailsElement).open).toBe(true);
+		}
+	});
+
+	it("collapse all closes all sections", async () => {
+		const user = userEvent.setup();
+		const { container } = render(<BriefView brief={sampleBrief} />);
+
+		await user.click(screen.getByText("Collapse all"));
+
+		const details = container.querySelectorAll("details.collapsible-section");
+		for (const d of details) {
+			expect((d as HTMLDetailsElement).open).toBe(false);
+		}
+	});
+
+	it("shows expand/collapse controls when sections exist", () => {
+		render(<BriefView brief={sampleBrief} />);
+		expect(screen.getByText("Expand all")).toBeDefined();
+		expect(screen.getByText("Collapse all")).toBeDefined();
+	});
+
+	it("does not show expand/collapse controls when no h2 sections", () => {
+		const simpleMarkdown = "# Title\n\nJust a paragraph.\n";
+		render(<BriefView brief={simpleMarkdown} />);
+		expect(screen.queryByText("Expand all")).toBeNull();
+		expect(screen.queryByText("Collapse all")).toBeNull();
+	});
+
+	it("renders section body content inside details", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const firstDetails = container.querySelector("details.collapsible-section");
+		expect(firstDetails?.textContent).toContain("Performance Optimization");
 	});
 });

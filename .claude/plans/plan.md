@@ -83,13 +83,17 @@ Replace `BriefView`'s `<pre>` with `<ReactMarkdown>` (react-markdown v10 + remar
 
 ### Phase 2: Navigation & Interaction (Tier 2)
 
-- [ ] **M3: Table of contents** — Add a `BriefToC` sidebar that auto-collects h2/h3 headings and provides smooth-scroll navigation. Layout: ToC on left, brief content on right.
+- [x] **M3: Table of contents** — Add a `BriefToC` sidebar that auto-collects h2/h3 headings and provides smooth-scroll navigation. Layout: ToC on left, brief content on right.
   - [ ] Step 1 — Create `BriefToC.tsx`: `slugify()` + `extractHeadings()` + `BriefToC` sidebar + `H2WithId`/`H3WithId` heading overrides → verify: `pnpm build`
   - [ ] Step 2 — Wire into `BriefView`: flex layout (ToC left, prose right), add heading overrides to markdownComponents, add ToC CSS → verify: `pnpm build`
   - [ ] Step 3 — Add ToC tests: assert ToC links render, assert heading IDs exist, assert scrollIntoView on click → verify: `pnpm test && pnpm lint`
   Commit: "feat: add table of contents sidebar for brief viewer"
 
 - [ ] **M4: Collapsible sections** — Override h2 rendering with `CollapsibleSection` component. First 3 sections expanded by default, rest collapsed. "Expand all / Collapse all" toggle.
+  - [ ] Step 1 — Add `splitSections` utility to BriefToC.tsx (splits markdown at h2 boundaries, returns preamble + sections with heading text/ID/body). Update `makeHeadingComponents` to accept optional initial idCounts so h3 IDs account for h2 entries. → verify: `pnpm build`
+  - [ ] Step 2 — Update `BriefView`: split brief into sections, render preamble via `<Markdown>`, render each h2 section as `<details>/<summary>` with first 3 open. Add expand/collapse all buttons (imperative DOM via ref). Add collapsible CSS to brief-prose.css. → verify: `pnpm build`
+  - [ ] Step 3 — Add tests: `splitSections` unit tests (boundary splitting, code block immunity, dedup IDs). BriefView tests (details elements render, first 3 open, expand/collapse all, no controls when no h2s). → verify: `pnpm test && pnpm lint`
+  Commit: "feat: add collapsible sections for brief viewer"
 
 ---
 

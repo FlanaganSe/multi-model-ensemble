@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { getBrief, getEvidenceMatrix, getSessionArtifacts, readArtifact } from "../../lib/api";
 import type { EvidenceMatrix, SessionArtifact } from "../../lib/types";
-import { BriefToC, extractHeadings, makeHeadingComponents } from "./components/BriefToC";
+import {
+	BriefToC,
+	extractHeadings,
+	makeHeadingComponents,
+	splitSections,
+} from "./components/BriefToC";
 import { CodeBlock } from "./components/CodeBlock";
 import "highlight.js/styles/github-dark.css";
 import "./brief-prose.css";
@@ -163,29 +168,84 @@ const remarkPlugins = [remarkGfm];
 const rehypePlugins = [rehypeHighlight];
 
 export function BriefView({ brief }: { brief: string | null }) {
-	// Create heading components with a fresh dedup counter per brief content.
-	// makeHeadingComponents returns h2/h3 overrides that share an internal counter,
-	// producing IDs that match extractHeadings' dedup logic.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: brief is a prop — reset counter when content changes
-	const components = useMemo(() => ({ pre: CodeBlock, ...makeHeadingComponents() }), [brief]);
+	const proseRef = useRef<HTMLDivElement>(null);
+	const headingCounterRef = useRef(new Map<string, number>());
+
+	const { preamble, sections, h2IdCounts } = useMemo(
+		() =>
+			brief
+				? splitSections(brief)
+				: { preamble: "", sections: [], h2IdCounts: new Map<string, number>() },
+		[brief],
+	);
+
+	const headings = useMemo(() => (brief ? extractHeadings(brief) : []), [brief]);
+
+	// Reset heading counter on each render pass — safe in Strict Mode
+	// (double-render resets the counter before each pass).
+	// Pre-seeded with h2 counts so h3 IDs account for h2 entries.
+	headingCounterRef.current = new Map(h2IdCounts);
+
+	const components = useMemo(
+		() => ({ pre: CodeBlock, ...makeHeadingComponents(headingCounterRef) }),
+		[],
+	);
 
 	if (!brief) {
 		return <div style={{ color: "#888" }}>No brief available. Run synthesis first.</div>;
 	}
 
-	const headings = extractHeadings(brief);
+	const handleExpandAll = () => {
+		const details = proseRef.current?.querySelectorAll<HTMLDetailsElement>(
+			"details.collapsible-section",
+		);
+		if (details) for (const d of details) d.open = true;
+	};
+
+	const handleCollapseAll = () => {
+		const details = proseRef.current?.querySelectorAll<HTMLDetailsElement>(
+			"details.collapsible-section",
+		);
+		if (details) for (const d of details) d.open = false;
+	};
 
 	return (
 		<div className="brief-layout">
 			{headings.length > 0 && <BriefToC headings={headings} />}
-			<div className="brief-prose">
-				<Markdown
-					remarkPlugins={remarkPlugins}
-					rehypePlugins={rehypePlugins}
-					components={components}
-				>
-					{brief}
-				</Markdown>
+			<div className="brief-prose" ref={proseRef}>
+				{sections.length > 0 && (
+					<div className="collapsible-controls">
+						<button type="button" onClick={handleExpandAll}>
+							Expand all
+						</button>
+						<button type="button" onClick={handleCollapseAll}>
+							Collapse all
+						</button>
+					</div>
+				)}
+				{preamble.trim() && (
+					<Markdown
+						remarkPlugins={remarkPlugins}
+						rehypePlugins={rehypePlugins}
+						components={components}
+					>
+						{preamble}
+					</Markdown>
+				)}
+				{sections.map((section, i) => (
+					<details key={section.id} className="collapsible-section" open={i < 3 || undefined}>
+						<summary className="collapsible-summary">
+							<h2 id={section.id}>{section.heading}</h2>
+						</summary>
+						<Markdown
+							remarkPlugins={remarkPlugins}
+							rehypePlugins={rehypePlugins}
+							components={components}
+						>
+							{section.body}
+						</Markdown>
+					</details>
+				))}
 			</div>
 		</div>
 	);

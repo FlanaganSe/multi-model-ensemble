@@ -61,6 +61,12 @@
 	border-left-color: #2563eb;
 }
 
+.brief-toc-link:focus-visible {
+	outline: 2px solid #2563eb;
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
 /* Scoped dark-mode typography for rendered markdown briefs.
    All rules are under .brief-prose to avoid leaking into other components. */
 
@@ -197,6 +203,75 @@
 	50% {
 		opacity: 0.8;
 	}
+}
+
+/* Collapsible sections */
+.collapsible-section {
+	border-bottom: 1px solid #222;
+	padding-bottom: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+
+.collapsible-summary {
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+
+.collapsible-summary::-webkit-details-marker {
+	display: none;
+}
+
+.collapsible-summary h2 {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.collapsible-summary h2::before {
+	content: "▸";
+	font-size: 0.75em;
+	color: #666;
+	transition: transform 200ms ease;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.collapsible-section[open] > .collapsible-summary h2::before {
+	transform: rotate(90deg);
+}
+
+.collapsible-summary:hover h2 {
+	color: #fff;
+}
+
+.collapsible-summary:focus-visible {
+	outline: 2px solid #2563eb;
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* Expand/Collapse controls */
+.collapsible-controls {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.collapsible-controls button {
+	background: #1a1a1a;
+	color: #aaa;
+	border: 1px solid #333;
+	border-radius: 4px;
+	padding: 4px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	transition: color 150ms, border-color 150ms;
+}
+
+.collapsible-controls button:hover {
+	color: #e0e0e0;
+	border-color: #555;
 }
 
 /* Links (unlikely in briefs, but safe to style) */

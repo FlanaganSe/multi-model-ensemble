@@ -4,6 +4,18 @@ export interface TocEntry {
 	id: string;
 }
 
+export interface BriefSection {
+	heading: string;
+	id: string;
+	body: string;
+}
+
+export interface SplitResult {
+	preamble: string;
+	sections: BriefSection[];
+	h2IdCounts: Map<string, number>;
+}
+
 export function slugify(text: string): string {
 	return text
 		.toLowerCase()
@@ -52,6 +64,52 @@ export function extractHeadings(markdown: string): TocEntry[] {
 	return headings;
 }
 
+/**
+ * Split markdown at h2 boundaries into a preamble (before first h2)
+ * and sections (each starting with an h2). Respects fenced code blocks.
+ * Returns h2IdCounts so heading components can be pre-seeded for correct dedup.
+ */
+export function splitSections(markdown: string): SplitResult {
+	const lines = markdown.split("\n");
+	const h2IdCounts = new Map<string, number>();
+	const preambleLines: string[] = [];
+	const sections: BriefSection[] = [];
+	let current: { heading: string; id: string; bodyLines: string[] } | null = null;
+	let inCodeBlock = false;
+
+	for (const line of lines) {
+		if (line.startsWith("```") || line.startsWith("~~~")) {
+			inCodeBlock = !inCodeBlock;
+		}
+
+		if (!inCodeBlock && line.startsWith("## ") && !line.startsWith("### ")) {
+			if (current) {
+				sections.push({
+					heading: current.heading,
+					id: current.id,
+					body: current.bodyLines.join("\n"),
+				});
+			}
+			const text = line.slice(3).trim();
+			const baseId = slugify(stripLinks(text));
+			const count = h2IdCounts.get(baseId) ?? 0;
+			h2IdCounts.set(baseId, count + 1);
+			const id = count === 0 ? baseId : `${baseId}-${count + 1}`;
+			current = { heading: text, id, bodyLines: [] };
+		} else if (current) {
+			current.bodyLines.push(line);
+		} else {
+			preambleLines.push(line);
+		}
+	}
+
+	if (current) {
+		sections.push({ heading: current.heading, id: current.id, body: current.bodyLines.join("\n") });
+	}
+
+	return { preamble: preambleLines.join("\n"), sections, h2IdCounts };
+}
+
 function extractText(node: React.ReactNode): string {
 	if (typeof node === "string") return node;
 	if (typeof node === "number") return String(node);
@@ -69,16 +127,16 @@ interface HeadingProps extends React.ComponentPropsWithoutRef<"h2"> {
 
 /**
  * Creates h2/h3 component overrides that add deduped id attributes.
- * Call once per render to get a fresh counter; heading components are
- * called in document order by react-markdown, matching extractHeadings.
+ * Accepts an external counter ref so the caller can reset it at the top
+ * of each render pass, making this safe in React Strict Mode (which
+ * double-invokes the render function — a stale internal Map would
+ * produce wrong IDs on the second pass).
  */
-export function makeHeadingComponents() {
-	const idCounts = new Map<string, number>();
-
+export function makeHeadingComponents(counterRef: { current: Map<string, number> }) {
 	function getNextId(text: string): string {
 		const baseId = slugify(text);
-		const count = idCounts.get(baseId) ?? 0;
-		idCounts.set(baseId, count + 1);
+		const count = counterRef.current.get(baseId) ?? 0;
+		counterRef.current.set(baseId, count + 1);
 		return count === 0 ? baseId : `${baseId}-${count + 1}`;
 	}
 
