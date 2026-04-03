@@ -4,6 +4,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { getBrief, getEvidenceMatrix, getSessionArtifacts, readArtifact } from "../../lib/api";
 import type { EvidenceMatrix, SessionArtifact } from "../../lib/types";
+import { CodeBlock } from "./components/CodeBlock";
 import "highlight.js/styles/github-dark.css";
 import "./brief-prose.css";
 
@@ -67,7 +68,7 @@ export function ArtifactViewer({ sessionId, onClose }: ArtifactViewerProps) {
 	};
 
 	if (loading) {
-		return <div style={{ padding: 24, color: "#888" }}>Loading session artifacts...</div>;
+		return <LoadingSkeleton />;
 	}
 
 	const tabStyle = (t: Tab) => ({
@@ -140,17 +141,39 @@ export function ArtifactViewer({ sessionId, onClose }: ArtifactViewerProps) {
 	);
 }
 
+function LoadingSkeleton() {
+	return (
+		<div style={{ padding: 24 }} className="skeleton-container">
+			<div className="skeleton-bar" style={{ width: "40%", height: 24, marginBottom: 16 }} />
+			<div className="skeleton-bar" style={{ width: "60%", height: 14, marginBottom: 8 }} />
+			<div className="skeleton-bar" style={{ width: "100%", height: 1, marginBottom: 16 }} />
+			<div className="skeleton-bar" style={{ width: "30%", height: 18, marginBottom: 12 }} />
+			<div className="skeleton-bar" style={{ width: "90%", height: 14, marginBottom: 6 }} />
+			<div className="skeleton-bar" style={{ width: "85%", height: 14, marginBottom: 6 }} />
+			<div className="skeleton-bar" style={{ width: "70%", height: 14, marginBottom: 16 }} />
+			<div className="skeleton-bar" style={{ width: "25%", height: 18, marginBottom: 12 }} />
+			<div className="skeleton-bar" style={{ width: "80%", height: 14, marginBottom: 6 }} />
+			<div className="skeleton-bar" style={{ width: "95%", height: 14, marginBottom: 6 }} />
+		</div>
+	);
+}
+
 const remarkPlugins = [remarkGfm];
 const rehypePlugins = [rehypeHighlight];
+const markdownComponents = { pre: CodeBlock };
 
-function BriefView({ brief }: { brief: string | null }) {
+export function BriefView({ brief }: { brief: string | null }) {
 	if (!brief) {
 		return <div style={{ color: "#888" }}>No brief available. Run synthesis first.</div>;
 	}
 
 	return (
 		<div className="brief-prose">
-			<Markdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
+			<Markdown
+				remarkPlugins={remarkPlugins}
+				rehypePlugins={rehypePlugins}
+				components={markdownComponents}
+			>
 				{brief}
 			</Markdown>
 		</div>

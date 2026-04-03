@@ -67,7 +67,7 @@ Replace `BriefView`'s `<pre>` with `<ReactMarkdown>` (react-markdown v10 + remar
 
 ### Phase 1: Core Rendering (Tier 1)
 
-- [ ] **M1: Basic markdown rendering** — Replace `<pre>` with `<ReactMarkdown>` + remark-gfm + rehype-highlight, add `brief-prose.css` with dark-mode typography. Verify headings, tables, lists, blockquotes, bold/italic all render correctly.
+- [x] **M1: Basic markdown rendering** — Replace `<pre>` with `<ReactMarkdown>` + remark-gfm + rehype-highlight, add `brief-prose.css` with dark-mode typography. Verify headings, tables, lists, blockquotes, bold/italic all render correctly.
   - [ ] Step 1 — Install deps: `pnpm add react-markdown remark-gfm rehype-highlight` → verify: `pnpm ls react-markdown`
   - [ ] Step 2 — Update Tauri CSP to add `style-src 'self' 'unsafe-inline'` (Vite dev injects CSS via `<style>` tags, blocked without this) → verify: grep csp in tauri.conf.json
   - [ ] Step 3 — Create `src/features/artifact-viewer/brief-prose.css` with scoped dark-mode typography → verify: file exists
@@ -75,6 +75,11 @@ Replace `BriefView`'s `<pre>` with `<ReactMarkdown>` (react-markdown v10 + remar
   Commit: "feat: add markdown rendering for research brief"
 
 - [ ] **M2: Copy button + loading skeleton** — Add `CodeBlock` component with clipboard copy. Replace "Loading session artifacts..." text with animated skeleton bars. Add unit tests for BriefView.
+  - [ ] Step 1 — Create `CodeBlock` component: override `pre` in react-markdown's `components` prop, use `useRef` + `textContent` for clipboard copy, "Copied!" flash via useState/setTimeout → verify: `pnpm build`
+  - [ ] Step 2 — Add loading skeleton: replace "Loading session artifacts..." with animated pulse bars, add skeleton CSS to brief-prose.css → verify: `pnpm build`
+  - [ ] Step 3 — Add BriefView unit tests: export BriefView, test markdown rendering (headings, tables, blockquotes), test copy button (mock navigator.clipboard), test skeleton → verify: `pnpm test`
+  - [ ] Step 4 — Lint check → verify: `pnpm lint`
+  Commit: "feat: add code copy button, loading skeleton, and BriefView tests"
 
 ### Phase 2: Navigation & Interaction (Tier 2)
 
