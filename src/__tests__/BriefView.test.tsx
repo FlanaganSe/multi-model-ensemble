@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { BriefView } from "../features/artifact-viewer/ArtifactViewer";
+import { extractHeadings, slugify } from "../features/artifact-viewer/components/BriefToC";
 
 // Sample markdown that mirrors render_brief() output structure
 const sampleBrief = `# Research Brief
@@ -164,5 +165,130 @@ describe("BriefView copy button", () => {
 
 		// Button should now show "Copied!"
 		expect(screen.getByText("Copied!")).toBeDefined();
+	});
+});
+
+describe("extractHeadings", () => {
+	it("extracts h2 and h3 headings from markdown", () => {
+		const headings = extractHeadings(sampleBrief);
+		const texts = headings.map((h) => h.text);
+		expect(texts).toContain("Key Themes");
+		expect(texts).toContain("Performance Optimization");
+		expect(texts).toContain("Recommendations");
+		expect(texts).toContain("Uncertainties");
+		expect(texts).toContain("Source Coverage");
+	});
+
+	it("assigns correct levels", () => {
+		const headings = extractHeadings(sampleBrief);
+		const keyThemes = headings.find((h) => h.text === "Key Themes");
+		const perfOpt = headings.find((h) => h.text === "Performance Optimization");
+		expect(keyThemes?.level).toBe(2);
+		expect(perfOpt?.level).toBe(3);
+	});
+
+	it("ignores headings inside backtick code blocks", () => {
+		const md = "## Real\n\n```\n## Not a heading\n```\n\n## Also Real\n";
+		const headings = extractHeadings(md);
+		expect(headings).toHaveLength(2);
+		expect(headings.map((h) => h.text)).toEqual(["Real", "Also Real"]);
+	});
+
+	it("ignores headings inside tilde code blocks", () => {
+		const md = "## Real\n\n~~~\n## Not a heading\n~~~\n\n## Also Real\n";
+		const headings = extractHeadings(md);
+		expect(headings).toHaveLength(2);
+		expect(headings.map((h) => h.text)).toEqual(["Real", "Also Real"]);
+	});
+
+	it("deduplicates IDs for duplicate heading text", () => {
+		const md = "## Summary\n\n## Details\n\n## Summary\n";
+		const headings = extractHeadings(md);
+		expect(headings.map((h) => h.id)).toEqual(["summary", "details", "summary-2"]);
+	});
+
+	it("strips markdown link syntax from heading text for IDs", () => {
+		const md = "## [Link Text](https://example.com) Section\n";
+		const headings = extractHeadings(md);
+		expect(headings[0]?.id).toBe("link-text-section");
+	});
+
+	it("does not extract h1 headings", () => {
+		const headings = extractHeadings(sampleBrief);
+		const h1 = headings.find((h) => h.text === "Research Brief");
+		expect(h1).toBeUndefined();
+	});
+
+	it("generates slugified IDs", () => {
+		expect(slugify("Key Themes")).toBe("key-themes");
+		expect(slugify("Performance Optimization")).toBe("performance-optimization");
+		expect(slugify("Source Coverage")).toBe("source-coverage");
+	});
+});
+
+describe("BriefView table of contents", () => {
+	it("renders ToC sidebar with heading links", () => {
+		render(<BriefView brief={sampleBrief} />);
+		expect(screen.getByText("Contents")).toBeDefined();
+		expect(screen.getByRole("navigation", { name: "Table of contents" })).toBeDefined();
+	});
+
+	it("renders ToC entries for h2 headings", () => {
+		render(<BriefView brief={sampleBrief} />);
+		// ToC buttons should exist alongside the rendered headings
+		const tocNav = screen.getByRole("navigation", { name: "Table of contents" });
+		const buttons = tocNav.querySelectorAll("button");
+		const buttonTexts = Array.from(buttons).map((b) => b.textContent);
+		expect(buttonTexts).toContain("Key Themes");
+		expect(buttonTexts).toContain("Recommendations");
+		expect(buttonTexts).toContain("Source Coverage");
+	});
+
+	it("renders ToC entries for h3 headings", () => {
+		render(<BriefView brief={sampleBrief} />);
+		const tocNav = screen.getByRole("navigation", { name: "Table of contents" });
+		const buttons = tocNav.querySelectorAll("button");
+		const buttonTexts = Array.from(buttons).map((b) => b.textContent);
+		expect(buttonTexts).toContain("Performance Optimization");
+	});
+
+	it("adds id attributes to rendered h2 headings", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const h2 = container.querySelector('h2[id="key-themes"]');
+		expect(h2).not.toBeNull();
+		expect(h2?.textContent).toBe("Key Themes");
+	});
+
+	it("adds id attributes to rendered h3 headings", () => {
+		const { container } = render(<BriefView brief={sampleBrief} />);
+		const h3 = container.querySelector('h3[id="performance-optimization"]');
+		expect(h3).not.toBeNull();
+	});
+
+	it("calls scrollIntoView when ToC link is clicked", async () => {
+		const user = userEvent.setup();
+		const { container } = render(<BriefView brief={sampleBrief} />);
+
+		// Mock scrollIntoView on the target heading
+		const targetH2 = container.querySelector('h2[id="recommendations"]');
+		if (!targetH2) throw new Error("Expected h2#recommendations to exist");
+		const scrollMock = vi.fn();
+		targetH2.scrollIntoView = scrollMock;
+
+		// Find and click the ToC button
+		const tocNav = screen.getByRole("navigation", { name: "Table of contents" });
+		const tocButtons = tocNav.querySelectorAll("button");
+		const recButton = Array.from(tocButtons).find((b) => b.textContent === "Recommendations");
+		if (!recButton) throw new Error("Expected Recommendations button in ToC");
+
+		await user.click(recButton);
+		expect(scrollMock).toHaveBeenCalledOnce();
+		expect(scrollMock).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+	});
+
+	it("does not render ToC when brief has no h2/h3 headings", () => {
+		const simpleMarkdown = "# Title\n\nJust a paragraph.\n";
+		render(<BriefView brief={simpleMarkdown} />);
+		expect(screen.queryByText("Contents")).toBeNull();
 	});
 });

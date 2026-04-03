@@ -74,7 +74,7 @@ Replace `BriefView`'s `<pre>` with `<ReactMarkdown>` (react-markdown v10 + remar
   - [ ] Step 4 — Replace `BriefView` in `ArtifactViewer.tsx`: swap `<pre>` for `<Markdown>` with remarkGfm + rehypeHighlight, import CSS → verify: `pnpm build && pnpm test`
   Commit: "feat: add markdown rendering for research brief"
 
-- [ ] **M2: Copy button + loading skeleton** — Add `CodeBlock` component with clipboard copy. Replace "Loading session artifacts..." text with animated skeleton bars. Add unit tests for BriefView.
+- [x] **M2: Copy button + loading skeleton** — Add `CodeBlock` component with clipboard copy. Replace "Loading session artifacts..." text with animated skeleton bars. Add unit tests for BriefView.
   - [ ] Step 1 — Create `CodeBlock` component: override `pre` in react-markdown's `components` prop, use `useRef` + `textContent` for clipboard copy, "Copied!" flash via useState/setTimeout → verify: `pnpm build`
   - [ ] Step 2 — Add loading skeleton: replace "Loading session artifacts..." with animated pulse bars, add skeleton CSS to brief-prose.css → verify: `pnpm build`
   - [ ] Step 3 — Add BriefView unit tests: export BriefView, test markdown rendering (headings, tables, blockquotes), test copy button (mock navigator.clipboard), test skeleton → verify: `pnpm test`
@@ -84,6 +84,10 @@ Replace `BriefView`'s `<pre>` with `<ReactMarkdown>` (react-markdown v10 + remar
 ### Phase 2: Navigation & Interaction (Tier 2)
 
 - [ ] **M3: Table of contents** — Add a `BriefToC` sidebar that auto-collects h2/h3 headings and provides smooth-scroll navigation. Layout: ToC on left, brief content on right.
+  - [ ] Step 1 — Create `BriefToC.tsx`: `slugify()` + `extractHeadings()` + `BriefToC` sidebar + `H2WithId`/`H3WithId` heading overrides → verify: `pnpm build`
+  - [ ] Step 2 — Wire into `BriefView`: flex layout (ToC left, prose right), add heading overrides to markdownComponents, add ToC CSS → verify: `pnpm build`
+  - [ ] Step 3 — Add ToC tests: assert ToC links render, assert heading IDs exist, assert scrollIntoView on click → verify: `pnpm test && pnpm lint`
+  Commit: "feat: add table of contents sidebar for brief viewer"
 
 - [ ] **M4: Collapsible sections** — Override h2 rendering with `CollapsibleSection` component. First 3 sections expanded by default, rest collapsed. "Expand all / Collapse all" toggle.
 

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Markdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { getBrief, getEvidenceMatrix, getSessionArtifacts, readArtifact } from "../../lib/api";
 import type { EvidenceMatrix, SessionArtifact } from "../../lib/types";
+import { BriefToC, extractHeadings, makeHeadingComponents } from "./components/BriefToC";
 import { CodeBlock } from "./components/CodeBlock";
 import "highlight.js/styles/github-dark.css";
 import "./brief-prose.css";
@@ -160,22 +161,32 @@ function LoadingSkeleton() {
 
 const remarkPlugins = [remarkGfm];
 const rehypePlugins = [rehypeHighlight];
-const markdownComponents = { pre: CodeBlock };
 
 export function BriefView({ brief }: { brief: string | null }) {
+	// Create heading components with a fresh dedup counter per brief content.
+	// makeHeadingComponents returns h2/h3 overrides that share an internal counter,
+	// producing IDs that match extractHeadings' dedup logic.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: brief is a prop — reset counter when content changes
+	const components = useMemo(() => ({ pre: CodeBlock, ...makeHeadingComponents() }), [brief]);
+
 	if (!brief) {
 		return <div style={{ color: "#888" }}>No brief available. Run synthesis first.</div>;
 	}
 
+	const headings = extractHeadings(brief);
+
 	return (
-		<div className="brief-prose">
-			<Markdown
-				remarkPlugins={remarkPlugins}
-				rehypePlugins={rehypePlugins}
-				components={markdownComponents}
-			>
-				{brief}
-			</Markdown>
+		<div className="brief-layout">
+			{headings.length > 0 && <BriefToC headings={headings} />}
+			<div className="brief-prose">
+				<Markdown
+					remarkPlugins={remarkPlugins}
+					rehypePlugins={rehypePlugins}
+					components={components}
+				>
+					{brief}
+				</Markdown>
+			</div>
 		</div>
 	);
 }
