@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import Markdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { getBrief, getEvidenceMatrix, getSessionArtifacts, readArtifact } from "../../lib/api";
 import type { EvidenceMatrix, SessionArtifact } from "../../lib/types";
+import "highlight.js/styles/github-dark.css";
+import "./brief-prose.css";
 
 interface ArtifactViewerProps {
 	sessionId: string;
@@ -135,28 +140,20 @@ export function ArtifactViewer({ sessionId, onClose }: ArtifactViewerProps) {
 	);
 }
 
+const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeHighlight];
+
 function BriefView({ brief }: { brief: string | null }) {
 	if (!brief) {
 		return <div style={{ color: "#888" }}>No brief available. Run synthesis first.</div>;
 	}
 
 	return (
-		<pre
-			style={{
-				background: "#111",
-				border: "1px solid #333",
-				borderRadius: 8,
-				padding: 16,
-				whiteSpace: "pre-wrap",
-				wordBreak: "break-word",
-				fontSize: 13,
-				lineHeight: 1.6,
-				maxHeight: "70vh",
-				overflow: "auto",
-			}}
-		>
-			{brief}
-		</pre>
+		<div className="brief-prose">
+			<Markdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
+				{brief}
+			</Markdown>
+		</div>
 	);
 }
 
