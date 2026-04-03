@@ -1,0 +1,33 @@
+direction: right
+
+user: User { shape: person }
+
+app: Tauri Desktop App {
+  ui: React Frontend
+  orchestrator: Orchestrator
+  providers: Provider Adapters
+  synthesis: Synthesis Engine
+  sessions: Session Manager
+  context: Context Packer
+}
+
+claude: Claude Code CLI { shape: cloud }
+codex: OpenAI Codex CLI { shape: cloud }
+gemini: Google Gemini CLI { shape: cloud }
+
+storage: Session Storage { shape: cylinder }
+project: Project Files { shape: cylinder }
+
+user -> app.ui: interact
+app.ui -> app.orchestrator: Tauri IPC
+app.ui -> app.sessions: Tauri IPC
+app.orchestrator -> app.providers: job dispatch
+app.providers -> claude: subprocess
+app.providers -> codex: subprocess
+app.providers -> gemini: subprocess
+app.orchestrator -> app.sessions: create session
+app.sessions -> storage: filesystem I/O
+app.context -> project: read files
+app.orchestrator -> app.context: build context pack
+app.orchestrator -> app.synthesis: normalize & synthesize
+app.synthesis -> storage: write artifacts
